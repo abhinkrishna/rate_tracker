@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  rate_tracker_postgres:
+    image: postgres:16
+    container_name: rate_tracker_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: rate_tracker_db
+      POSTGRES_USER: rate_tracker_user
+      POSTGRES_PASSWORD: rate_tracker_password
+    volumes:
+      - rate_tracker_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rate_tracker_user -d rate_tracker_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rate_tracker_redis:
+    image: redis:7
+    container_name: rate_tracker_redis
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rate_tracker_backend:
+    build: ./backend
+    container_name: rate_tracker_backend
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      rate_tracker_postgres:
+        condition: service_healthy
+      rate_tracker_redis:
+        condition: service_healthy
+    environment: &backend_env
+      DB_NAME: rate_tracker_db
+      DB_USER: rate_tracker_user
+      DB_PASSWORD: rate_tracker_password
+      DB_HOST: rate_tracker_postgres
+      DB_PORT: 5432
+      REDIS_URL: redis://rate_tracker_redis:6379
+    stdin_open: true
+    tty: true
+
+  rate_tracker_frontend:
+    build: ./frontend
+    container_name: rate_tracker_frontend
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - rate_tracker_backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  rate_tracker_celery:
+    build: ./backend
+    container_name: rate_tracker_celery_worker
+    command: celery -A rate_tracker worker -l info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      rate_tracker_postgres:
+        condition: service_healthy
+      rate_tracker_redis:
+        condition: service_healthy
+    environment:
+      <<: *backend_env
+
+  rate_tracker_celery_beat:
+    build: ./backend
+    container_name: rate_tracker_celery_beat
+    command: celery -A rate_tracker beat -l info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      rate_tracker_postgres:
+        condition: service_healthy
+      rate_tracker_redis:
+        condition: service_healthy
+    environment:
+      <<: *backend_env
+
+volumes:
+  rate_tracker_postgres_data:

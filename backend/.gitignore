@@ -1,0 +1,14 @@
+# Django & Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+.env
+.venv/
+venv/
+env/
+
+# Project specific
+logs/
+rate_tracker/local_settings.py
