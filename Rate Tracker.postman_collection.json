@@ -1,0 +1,212 @@
+{
+  "info": {
+    "_postman_id": "f8e5ba81-75df-4d3f-a62d-9e5ca8ed09c3",
+    "name": "Rate Tracker",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12659187"
+  },
+  "item": [
+    {
+      "name": "rates",
+      "item": [
+        {
+          "name": "rate latest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/rates/latest",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "rates",
+                "latest"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "rate history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/rates/history?provider=Bank of America&type=savings_1yr_fixed",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "rates",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "provider",
+                  "value": "Bank of America"
+                },
+                {
+                  "key": "type",
+                  "value": "savings_1yr_fixed"
+                },
+                {
+                  "key": "from",
+                  "value": null,
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "rate ingest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzc0NzYwNDQ3LCJpYXQiOjE3NzQ3NTY4NDcsImp0aSI6ImVmOGVjZjdhZTI1ZTRlZGY5MjEwOWFjM2Y0YzFkNGE3IiwidXNlcl9pZCI6IjIifQ.Sdtv5FtYrXBGnWDXrH9U0puGcJhQ5atRgKe5nqqiuic",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"provider_name\": \"Bank of America\",\n    \"currency_code\": \"USD\",\n    \"rate_type_name\": \"savings_1yr_fixed\",\n    \"rate_value\": \"5.8015000000\",\n    \"effective_date\": \"2026-03-26\",\n    \"ingestion_ts\": \"2026-03-26T16:37:57Z\",\n    \"source_url\": \"https://www.bank-of-america.com/rates/savings_1yr_fixed\",\n    \"raw_response_id\": \"a3283123-748d-aaa-aaaa-ffd796bc5f58\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/rates/ingest/",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "rates",
+                "ingest",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "rate options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/rates/options",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "rates",
+                "options"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "auth",
+      "item": [
+        {
+          "name": "register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"email\": \"admin@admin.com\",\n    \"password\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/register/",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "register",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/token/",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "token",
+                ""
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/api/health",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
