@@ -2,7 +2,7 @@ from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework import status
 from rate_tracker.settings import DEBUG
 
-from rate_tracker.responses import ERROR_RESPONSE
+from rate_tracker.response import ERROR_RESPONSE
 
 
 def custom_exception_handler(exc, context):

@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from rate_tracker.constants import IngestRawStatus
 from rates.models import IngestRaw, Rate, Provider, Currency, RateType
+from rate_tracker.cache import CacheUtility
 
 # Import handlers and Source class
 from .sources.base import Source
@@ -239,4 +240,5 @@ class IngestionWorker:
         logger.info(
             f"Organization complete: {processed_count} records processed into Rates table."
         )
+        CacheUtility().delete_pattern("*")
         return {"organized": processed_count}

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -40,8 +41,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_extensions",
+    "django_filters",
+    "corsheaders",
     # DRF
     "rest_framework",
+    "rest_framework.authtoken",
     # Celery
     "django_celery_beat",
     "django_celery_results",
@@ -50,6 +54,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -139,12 +144,20 @@ STATIC_URL = "static/"
 ALLOWED_HOSTS = ["localhost"]
 
 REST_FRAMEWORK = {
-    # "DEFAULT_AUTHENTICATION_CLASSES": [
-    #     "rest_framework_simplejwt.authentication.JWTAuthentication",
-    #     "rest_framework.authentication.TokenAuthentication",
-    # ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "EXCEPTION_HANDLER": "rate_tracker.exception_handler.custom_exception_handler",
 }
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 LOGGING = {
     "version": 1,
