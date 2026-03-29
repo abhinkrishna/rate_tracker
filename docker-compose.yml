@@ -53,21 +53,6 @@ services:
     stdin_open: true
     tty: true
 
-  rate_tracker_frontend:
-    build: ./frontend
-    container_name: rate_tracker_frontend
-    command: npm run dev
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    ports:
-      - "3000:3000"
-    depends_on:
-      - rate_tracker_backend
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-
   rate_tracker_celery:
     build: ./backend
     container_name: rate_tracker_celery_worker
