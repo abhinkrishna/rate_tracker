@@ -47,6 +47,9 @@ services:
       DB_HOST: rate_tracker_postgres
       DB_PORT: 5432
       REDIS_URL: redis://rate_tracker_redis:6379
+      DJANGO_SUPERUSER_USERNAME: root
+      DJANGO_SUPERUSER_EMAIL: root@example.com
+      DJANGO_SUPERUSER_PASSWORD: root
     stdin_open: true
     tty: true
 
@@ -76,6 +79,8 @@ services:
         condition: service_healthy
       rate_tracker_redis:
         condition: service_healthy
+      rate_tracker_backend:
+        condition: service_started
     environment:
       <<: *backend_env
 
@@ -90,6 +95,8 @@ services:
         condition: service_healthy
       rate_tracker_redis:
         condition: service_healthy
+      rate_tracker_backend:
+        condition: service_started
     environment:
       <<: *backend_env
 

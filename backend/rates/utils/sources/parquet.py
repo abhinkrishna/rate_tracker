@@ -1,6 +1,6 @@
-import hashlib
-import json
 import logging
+import json
+from django.core.serializers.json import DjangoJSONEncoder
 import pyarrow.parquet as pq
 from rate_tracker.constants import IngestRawStatus
 from rates.models import IngestRaw
@@ -20,33 +20,24 @@ def ingest_parquet(source_obj: Source):
         batch_count = 0
 
         # Read in batches of 10,000 to keep memory usage low
-        for batch in parquet_file.iter_batches(batch_size=10000):
+        for batch in parquet_file.iter_batches(batch_size=10_000):
             # Convert batch to list of dictionaries
             data_list = batch.to_pylist()
             raw_records = []
 
             for row_data in data_list:
+                # Handle non-serializable types like datetime.date
+                row_data = json.loads(json.dumps(row_data, cls=DjangoJSONEncoder))
+
                 # Deterministic ID for idempotency:
-                # Combine raw_response_id with a hash of the row's content
-
                 raw_res_id = str(row_data.get("raw_response_id", "unknown"))
-
-                # We sort keys and use a standard encoder to ensure consistent hashing
-                data_string = json.dumps(row_data, sort_keys=True, default=str)
-                data_hash = hashlib.md5(data_string.encode()).hexdigest()
-
-                # This response_id should uniquely identify this data point across re-runs
-                response_id = f"{raw_res_id}_{data_hash}"
-
-                # Convert the cleanly stringified data back to dict so Django can save it safely as JSON
-                clean_row_data = json.loads(data_string)
 
                 raw_records.append(
                     IngestRaw(
                         source=source_obj.name,
                         status=IngestRawStatus.PENDING,
-                        response_id=response_id[:255],
-                        data=clean_row_data,
+                        response_id=raw_res_id,
+                        data=row_data,
                     )
                 )
 

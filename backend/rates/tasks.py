@@ -1,4 +1,4 @@
-from celery import shared_task, chain
+from celery import shared_task
 from rates.utils.ingestion_worker import IngestionWorker, Source
 
 
@@ -15,7 +15,7 @@ def ingest_task(self, source_dict):
 
 
 @shared_task(bind=True)
-def validation_task(self, prev_result=None):
+def validation_task(self):
     """
     Step 2: Data Validation.
     """
@@ -26,7 +26,7 @@ def validation_task(self, prev_result=None):
 
 
 @shared_task(bind=True)
-def organizer_task(self, prev_result=None):
+def organizer_task(self):
     """
     Step 3: Data Organization (Rate Table Population).
     """
@@ -34,25 +34,3 @@ def organizer_task(self, prev_result=None):
         return IngestionWorker.organizer_worker()
     except Exception as e:
         self.retry(exc=e, countdown=60, max_retries=3)
-
-
-@shared_task(bind=True)
-def cleanup_task(self, prev_result=None):
-    """
-    Step 4: Cleanup processed raw data.
-    """
-    try:
-        return IngestionWorker.cleanup_worker()
-    except Exception as e:
-        self.retry(exc=e, countdown=60, max_retries=3)
-
-
-@shared_task(bind=True)
-def ingest_data_smoke_test(self):
-    """
-    Simple smoke test for Celery configuration.
-    """
-    try:
-        return IngestionWorker.test()
-    except Exception as e:
-        self.retry(exc=e, countdown=5, max_retries=3)

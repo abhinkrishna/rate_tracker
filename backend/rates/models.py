@@ -19,6 +19,7 @@ class Currency(models.Model):
     code = models.CharField(max_length=10, unique=True)
     symbol = models.CharField(max_length=10, blank=True, null=True)
     country = models.CharField(max_length=255, blank=True, null=True)
+    aliases = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.code
@@ -43,9 +44,7 @@ class RateType(models.Model):
 class IngestRaw(models.Model):
     source = models.CharField(max_length=255)
     status = models.CharField(
-        max_length=20,
-        choices=IngestRawStatus.choices,
-        default=IngestRawStatus.PENDING
+        max_length=20, choices=IngestRawStatus.choices, default=IngestRawStatus.PENDING
     )
     response_id = models.CharField(max_length=255, unique=True)
     data = models.JSONField()
@@ -61,14 +60,20 @@ class IngestRaw(models.Model):
 
 
 class Rate(models.Model):
-    provider = models.ForeignKey(Provider, on_delete=models.CASCADE, related_name="rates")
-    currency = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="rates")
-    rate_type = models.ForeignKey(RateType, on_delete=models.CASCADE, related_name="rates")
+    provider = models.ForeignKey(
+        Provider, on_delete=models.CASCADE, related_name="rates"
+    )
+    currency = models.ForeignKey(
+        Currency, on_delete=models.CASCADE, related_name="rates"
+    )
+    rate_type = models.ForeignKey(
+        RateType, on_delete=models.CASCADE, related_name="rates"
+    )
     rate_value = models.DecimalField(max_digits=20, decimal_places=10)
     effective_date = models.DateField()
     ingestion_ts = models.DateTimeField()
     source_url = models.URLField(max_length=500, blank=True, null=True)
-    raw_response_id = models.CharField(max_length=255)
+    raw_response_id = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
         return f"{self.currency.code} - {self.rate_value} ({self.provider.name})"
@@ -77,5 +82,5 @@ class Rate(models.Model):
         verbose_name = "Rate"
         verbose_name_plural = "Rates"
         indexes = [
-            models.Index(fields=['effective_date', 'currency', 'provider']),
+            models.Index(fields=["effective_date", "currency", "provider"]),
         ]

@@ -1,5 +1,5 @@
 import logging
-from django.db import transaction, connection
+from django.db import transaction
 from django.utils import timezone
 from rate_tracker.constants import IngestRawStatus
 from rates.models import IngestRaw, Rate, Provider, Currency, RateType
@@ -43,7 +43,7 @@ class IngestionWorker:
             raise e
 
     @staticmethod
-    def validation_worker(chunk_size=10000):
+    def validation_worker(chunk_size=5_000):
         """
         Processes pending IngestRaw records and validates them in chunks.
         Checks if data structure matches the Rate table requirement.
@@ -71,11 +71,11 @@ class IngestionWorker:
             for record in batch:
                 # Using separate RateValidator class
                 if RateValidator.is_valid(record.data):
-                    record.status = IngestRawStatus.VALIDATED
+                    record.status = IngestRawStatus.VALID
                     validated_records.append(record)
                     processed_count += 1
                 else:
-                    record.status = IngestRawStatus.FAILED
+                    record.status = IngestRawStatus.INVALID
                     failed_records.append(record)
                     failed_count += 1
 
@@ -102,17 +102,15 @@ class IngestionWorker:
         return str(name).strip().lower().replace(" ", "_")
 
     @staticmethod
-    def organizer_worker(chunk_size=1000):
+    def organizer_worker(chunk_size=5_000):
         """
         Processes validated IngestRaw records, transforms them into Rate objects.
-        Changes IngestRaw status to 'remove' after processing.
+        Changes IngestRaw status to 'success' after processing.
         Uses pagination and bulk creation.
         """
         logger.info("Starting organizer worker with pagination...")
 
-        total_validated = IngestRaw.objects.filter(
-            status=IngestRawStatus.VALIDATED
-        ).count()
+        total_validated = IngestRaw.objects.filter(status=IngestRawStatus.VALID).count()
         logger.info(f"Total records to organize: {total_validated}")
 
         processed_count = 0
@@ -134,11 +132,13 @@ class IngestionWorker:
             rate_type_cache[IngestionWorker._normalize_alias(rt.name)] = rt
 
         for currency in Currency.objects.all():
-            currency_cache[currency.code] = currency
+            for alias in currency.aliases:
+                currency_cache[alias] = currency
+            currency_cache[IngestionWorker._normalize_alias(currency.code)] = currency
 
         while True:
             batch = list(
-                IngestRaw.objects.filter(status=IngestRawStatus.VALIDATED)[:chunk_size]
+                IngestRaw.objects.filter(status=IngestRawStatus.VALID)[:chunk_size]
             )
             if not batch:
                 break
@@ -171,15 +171,20 @@ class IngestionWorker:
                                 provider_cache[p_alias] = provider
 
                             # 2. Resolve Currency
-                            c_code = item.get("currency", "USD")
-                            if c_code not in currency_cache:
-                                currency, _ = Currency.objects.get_or_create(
-                                    code=c_code,
-                                    defaults={
-                                        "name": item.get("currency", "US Dollar")
-                                    },
+                            raw_c_code = item.get("currency", "USD")
+                            c_alias = IngestionWorker._normalize_alias(raw_c_code)
+                            if c_alias not in currency_cache:
+                                currency, created = Currency.objects.get_or_create(
+                                    code=raw_c_code[:10],
+                                    defaults={"name": raw_c_code},
                                 )
-                                currency_cache[c_code] = currency
+                                if created:
+                                    currency.aliases = [c_alias]
+                                    currency.save(update_fields=["aliases"])
+                                elif c_alias not in currency.aliases:
+                                    currency.aliases.append(c_alias)
+                                    currency.save(update_fields=["aliases"])
+                                currency_cache[c_alias] = currency
 
                             # 3. Resolve RateType
                             raw_rt_name = item.get("rate_type", "Standard")
@@ -199,7 +204,7 @@ class IngestionWorker:
                             rates_to_create.append(
                                 Rate(
                                     provider=provider_cache[p_alias],
-                                    currency=currency_cache[c_code],
+                                    currency=currency_cache[c_alias],
                                     rate_type=rate_type_cache[rt_alias],
                                     rate_value=item.get("rate_value", 0),
                                     effective_date=item.get(
@@ -213,11 +218,11 @@ class IngestionWorker:
                                 )
                             )
 
-                        record.status = IngestRawStatus.REMOVE
+                        record.status = IngestRawStatus.SUCCESS
 
                     # Perform bulk creation of rates for this batch
                     if rates_to_create:
-                        Rate.objects.bulk_create(rates_to_create)
+                        Rate.objects.bulk_create(rates_to_create, ignore_conflicts=True)
 
                     # Bulk update the IngestRaw status
                     IngestRaw.objects.bulk_update(batch, ["status"])
@@ -235,45 +240,3 @@ class IngestionWorker:
             f"Organization complete: {processed_count} records processed into Rates table."
         )
         return {"organized": processed_count}
-
-    @staticmethod
-    def cleanup_worker():
-        """
-        Deletes IngestRaw records with status 'remove' using direct SQL for efficiency.
-        This avoids Django's memory overhead by working entirely at the DB level.
-        """
-        logger.info("Starting cleanup worker using direct SQL...")
-
-        # 1. Get the current count for reporting
-        count = IngestRaw.objects.filter(status=IngestRawStatus.REMOVE).count()
-
-        if count > 0:
-            # Use dynamically retrieved table name for robustness
-            table_name = IngestRaw._meta.db_table
-            with connection.cursor() as cursor:
-                # Direct SQL execution for maximum speed and zero memory allocation in Python
-                # This bypasses all Django signals/cascades for performance.
-                query = f"DELETE FROM {table_name} WHERE status = %s"
-                cursor.execute(query, [IngestRawStatus.REMOVE])
-
-            logger.info(f"Cleanup complete: {count} records removed from {table_name}")
-        else:
-            logger.info("No records found with 'remove' status. Cleanup skipped.")
-
-        return {"deleted": count}
-
-    @staticmethod
-    def test():
-        # Smoke test for Celery
-        from django.contrib.auth import get_user_model
-
-        User = get_user_model()
-        total = 0
-        for i in range(1_000):
-            total += i
-        user_count = User.objects.count()
-        return {
-            "status": "success",
-            "sum": total,
-            "user_count": user_count,
-        }
