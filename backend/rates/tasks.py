@@ -1,5 +1,15 @@
 from celery import shared_task
 from rates.utils.ingestion_worker import IngestionWorker, Source
+from django.core.management import call_command
+
+
+@shared_task
+def run_seed_data_task():
+    """
+    Periodic task to trigger the seed_data management command every hour.
+    """
+    call_command("seed_data")
+
 
 
 @shared_task(bind=True)
